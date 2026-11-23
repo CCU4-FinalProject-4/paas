@@ -1,0 +1,11 @@
+# Environment profiles with real values (only .env.example is versioned)
+.env
+.env.floci
+.env.aws
+
+# macOS
+.DS_Store
+
+# Local docs and evidence captures (not versioned)
+docs/
+evidence/
