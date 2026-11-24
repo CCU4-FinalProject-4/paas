@@ -19,6 +19,26 @@ services:
     networks:
       - paas
 
+  api:
+    image: ghcr.io/ccu4-finalproject-4/api:${API_TAG:-latest}
+    build: ./api
+    ports:
+      - "8000:8000"
+    environment:
+      AWS_ENDPOINT_URL: http://floci:4566
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
+      ITEMS_TABLE: ${ITEMS_TABLE:-paas-items}
+      SESSIONS_TABLE: ${SESSIONS_TABLE:-paas-sessions}
+      APP_VERSION: ${API_TAG:-dev}
+    stop_grace_period: 30s
+    depends_on:
+      floci:
+        condition: service_healthy
+    networks:
+      - paas
+
 volumes:
   floci-data:
 

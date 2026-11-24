@@ -3,6 +3,12 @@
 .env.floci
 .env.aws
 
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
 # macOS
 .DS_Store
 
