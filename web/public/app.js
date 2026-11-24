@@ -1,4 +1,4 @@
-const WEB_VERSION = "1.0.0";
+const WEB_VERSION = "1.1.0";
 
 const $ = (id) => document.getElementById(id);
 

@@ -95,3 +95,66 @@ jobs:
             echo "${{ steps.meta.outputs.tags }}"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # Floci runs inside the job: start from the previous release, then roll to the new one.
+  deploy:
+    needs: build-push
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    env:
+      BEFORE: ${{ github.event.before }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: start floci
+        run: make infra
+
+      - name: deploy previous release
+        run: |
+          NEW_TAG=sha-${GITHUB_SHA::7}
+          prev=sha-${BEFORE::7}
+          if docker manifest inspect "ghcr.io/ccu4-finalproject-4/api:$prev" >/dev/null 2>&1 &&
+             docker manifest inspect "ghcr.io/ccu4-finalproject-4/web:$prev" >/dev/null 2>&1; then
+            make deploy TAG="$prev"
+          else
+            echo "no images for $prev, starting from $NEW_TAG"
+            make deploy TAG="$NEW_TAG"
+          fi
+          echo "NEW_TAG=$NEW_TAG" >> "$GITHUB_ENV"
+          echo "PREV_TAG=$prev" >> "$GITHUB_ENV"
+
+      - name: rolling update
+        run: |
+          ./scripts/probe.sh probe.csv &
+          probe=$!
+          sleep 2
+          make deploy TAG="$NEW_TAG"
+          kill "$probe"
+          tail -n +2 probe.csv | awk -F, '{t++; if ($2 != "200") f++} END {printf "requests=%d\nfailed=%d\n", t, f}' >> "$GITHUB_ENV"
+
+      - name: e2e tests
+        run: make e2e
+
+      - name: summary
+        if: always()
+        run: |
+          {
+            echo "### deploy on Floci"
+            echo "rolled \`${PREV_TAG:-?}\` → \`${NEW_TAG:-?}\` (api-1, api-2, web one at a time)"
+            echo ""
+            echo "probe every 100 ms during the update: **${requests:-0} requests, ${failed:-?} failed**"
+            echo ""
+            echo '```'
+            docker compose ps --format '{{.Name}}\t{{.Image}}\t{{.Status}}'
+            set -a; . ./.env.floci; set +a
+            aws ssm get-parameters-by-path --path /paas --recursive \
+              --query 'Parameters[].[Name,Value]' --output text
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: rolling-update-probe
+          path: probe.csv
+          if-no-files-found: ignore

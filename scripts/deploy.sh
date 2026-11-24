@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Usage: deploy.sh [tag]. "local" builds the images here; any other tag is pulled from GHCR.
+# Services are replaced one at a time (rolling update); SERVICES limits which ones.
 set -euo pipefail
 
 tag=${1:-local}
+services=${SERVICES:-api-1 api-2 web}
 export API_TAG=$tag WEB_TAG=$tag
 
 if [[ "$tag" == "local" ]]; then
@@ -11,7 +13,12 @@ else
   docker compose pull api-1 api-2 web
 fi
 
-docker compose up -d --no-build --wait api-1 api-2 web
+for svc in $services; do
+  echo "updating $svc to $tag"
+  docker compose up -d --no-deps --no-build --wait "$svc"
+  # Give nginx time to re-resolve the new container and forget past failures before touching the next one.
+  sleep 10
+done
 
 put_param() {
   aws ssm put-parameter --name "$1" --value "$2" --type String --overwrite >/dev/null
