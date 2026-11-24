@@ -1,5 +1,23 @@
 name: paas
 
+x-api: &api
+  image: ghcr.io/ccu4-finalproject-4/api:${API_TAG:-latest}
+  build: ./api
+  environment:
+    AWS_ENDPOINT_URL: http://floci:4566
+    AWS_REGION: ${AWS_REGION:-us-east-1}
+    AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test}
+    AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
+    ITEMS_TABLE: ${ITEMS_TABLE:-paas-items}
+    SESSIONS_TABLE: ${SESSIONS_TABLE:-paas-sessions}
+    APP_VERSION: ${API_TAG:-dev}
+  stop_grace_period: 30s
+  depends_on:
+    floci:
+      condition: service_healthy
+  networks:
+    - paas
+
 services:
   # Local AWS emulator
   floci:
@@ -19,23 +37,23 @@ services:
     networks:
       - paas
 
-  api:
-    image: ghcr.io/ccu4-finalproject-4/api:${API_TAG:-latest}
-    build: ./api
+  # Named replicas instead of --scale so a rolling update can replace them one at a time.
+  api-1:
+    <<: *api
+    container_name: paas-api-1
+    hostname: api-1
+
+  api-2:
+    <<: *api
+    container_name: paas-api-2
+    hostname: api-2
+
+  web:
+    image: ghcr.io/ccu4-finalproject-4/web:${WEB_TAG:-latest}
+    build: ./web
+    container_name: paas-web
     ports:
-      - "8000:8000"
-    environment:
-      AWS_ENDPOINT_URL: http://floci:4566
-      AWS_REGION: ${AWS_REGION:-us-east-1}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
-      ITEMS_TABLE: ${ITEMS_TABLE:-paas-items}
-      SESSIONS_TABLE: ${SESSIONS_TABLE:-paas-sessions}
-      APP_VERSION: ${API_TAG:-dev}
-    stop_grace_period: 30s
-    depends_on:
-      floci:
-        condition: service_healthy
+      - "8080:8080"
     networks:
       - paas
 

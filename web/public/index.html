@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mini-PaaS</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Mini-PaaS</h1>
+    <p class="muted">web <span id="web-version"></span> · api <span id="api-version">…</span> · <span id="api-status">…</span></p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Visitas</h2>
+      <p class="big" id="visits">–</p>
+      <button id="visit-btn">Sumar visita</button>
+    </section>
+
+    <section class="card">
+      <h2>Sesión</h2>
+      <p>Vistas: <strong id="session-views">–</strong></p>
+      <p class="muted">id <code id="session-id">–</code></p>
+      <p class="muted">creada por <code id="session-created">–</code></p>
+    </section>
+
+    <section class="card wide">
+      <h2>Items</h2>
+      <form id="item-form">
+        <input id="item-name" placeholder="Nombre" required maxlength="200">
+        <input id="item-desc" placeholder="Descripción" maxlength="2000">
+        <button>Agregar</button>
+      </form>
+      <ul id="items"></ul>
+    </section>
+
+    <section class="card wide">
+      <h2>Últimas respuestas</h2>
+      <ol id="log" class="muted"></ol>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
