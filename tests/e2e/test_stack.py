@@ -38,15 +38,11 @@ def test_load_balancer_uses_both_replicas(web):
 def test_session_survives_replica_stop(web):
     first = web.get("/session").json()
     replica = first["served_by"]
-    subprocess.run(
-        ["docker", "stop", f"paas-{replica}"], check=True, capture_output=True
-    )
+    subprocess.run(["docker", "stop", f"paas-{replica}"], check=True, capture_output=True)
     try:
         second = web.get("/session").json()
     finally:
-        subprocess.run(
-            ["docker", "start", f"paas-{replica}"], check=True, capture_output=True
-        )
+        subprocess.run(["docker", "start", f"paas-{replica}"], check=True, capture_output=True)
         wait_healthy(f"paas-{replica}")
 
     assert second["served_by"] != replica

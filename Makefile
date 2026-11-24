@@ -34,7 +34,9 @@ api/.venv: api/requirements-dev.txt
 	touch api/.venv
 
 test: api/.venv ## Lint and run the API unit tests
-	cd api && ruff check . && ruff format --check . && .venv/bin/pytest -q
+	api/.venv/bin/ruff check api tests
+	api/.venv/bin/ruff format --check api tests
+	cd api && .venv/bin/pytest -q
 
 e2e: api/.venv ## Statelessness and concurrency tests against the running stack
 	api/.venv/bin/pytest -q tests/e2e
