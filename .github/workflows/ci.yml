@@ -106,6 +106,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
       - name: start floci
         run: make infra
 
@@ -123,14 +127,20 @@ jobs:
           echo "NEW_TAG=$NEW_TAG" >> "$GITHUB_ENV"
           echo "PREV_TAG=$prev" >> "$GITHUB_ENV"
 
+      # web is the single nginx in front of the replicas, so its swap is measured on its own.
       - name: rolling update
         run: |
-          ./scripts/probe.sh probe.csv &
-          probe=$!
-          sleep 2
-          make deploy TAG="$NEW_TAG"
-          kill "$probe"
-          tail -n +2 probe.csv | awk -F, '{t++; if ($2 != "200") f++} END {printf "requests=%d\nfailed=%d\n", t, f}' >> "$GITHUB_ENV"
+          probe() {
+            ./scripts/probe.sh "$1.csv" &
+            pid=$!
+            sleep 2
+            SERVICES=$2 make deploy TAG="$NEW_TAG"
+            kill "$pid"
+            tail -n +2 "$1.csv" | awk -F, -v p="$1" \
+              '{t++; if ($2 != "200") f++} END {printf "%s_requests=%d\n%s_failed=%d\n", p, t, p, f}' >> "$GITHUB_ENV"
+          }
+          probe api "api-1 api-2"
+          probe web web
 
       - name: e2e tests
         run: make e2e
@@ -142,7 +152,9 @@ jobs:
             echo "### deploy on Floci"
             echo "rolled \`${PREV_TAG:-?}\` → \`${NEW_TAG:-?}\` (api-1, api-2, web one at a time)"
             echo ""
-            echo "probe every 100 ms during the update: **${requests:-0} requests, ${failed:-?} failed**"
+            echo "probe every 100 ms through nginx:"
+            echo "- api replicas rolling update: **${api_requests:-0} requests, ${api_failed:-?} failed**"
+            echo "- web (load balancer) swap: **${web_requests:-0} requests, ${web_failed:-?} failed**"
             echo ""
             echo '```'
             docker compose ps --format '{{.Name}}\t{{.Image}}\t{{.Status}}'
@@ -156,5 +168,5 @@ jobs:
         if: always()
         with:
           name: rolling-update-probe
-          path: probe.csv
+          path: "*.csv"
           if-no-files-found: ignore
