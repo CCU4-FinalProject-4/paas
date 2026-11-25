@@ -40,3 +40,28 @@ test: api/.venv ## Lint and run the API unit tests
 
 e2e: api/.venv ## Statelessness and concurrency tests against the running stack
 	api/.venv/bin/pytest -q tests/e2e
+
+# Phase 2 (real AWS): run with ENV_FILE=.env.aws, e.g. `make aws-up ENV_FILE=.env.aws TAG=sha-abc1234`
+PY ?= api/.venv/bin/python
+.PHONY: aws-bootstrap aws-up aws-list aws-down lambda-deploy lambda-test lambda-logs
+
+aws-bootstrap: api/.venv ## Security group + IAM role/profile for burst nodes
+	$(PY) scripts/aws/bootstrap.py up
+
+aws-up: api/.venv ## Launch one EC2 burst node running the API image TAG
+	$(PY) scripts/aws/node.py up --tag $(TAG)
+
+aws-list: api/.venv
+	$(PY) scripts/aws/node.py list
+
+aws-down: api/.venv ## Terminate every burst node
+	$(PY) scripts/aws/node.py down --all
+
+lambda-deploy: api/.venv ## Enable the items stream and deploy the audit Lambda
+	$(PY) scripts/aws/lambda_ctl.py deploy
+
+lambda-test: api/.venv
+	$(PY) scripts/aws/lambda_ctl.py test
+
+lambda-logs: api/.venv
+	$(PY) scripts/aws/lambda_ctl.py logs
